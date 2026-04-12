@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Локальні Шахи</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=10">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+    <!-- 3D Canvas (Full Screen) -->
+    <div id="board-3d" class="hidden"></div>
+    
+    <div id="game-container">
+        
+        <div id="top-bar" class="glass-panel">
+            <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 5px;">
+                <div id="status">Хід білих</div>
+                <div id="opponent-status" style="font-size: 0.8em; color: #aaa; font-style: italic; display: flex; align-items: center; gap: 5px;">
+                    Суперник: Людина
+                </div>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+                <div id="player-name-display" style="font-size: 0.85em; color: #4CAF50; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">Гравець: -</div>
+                <div style="display: flex; gap: 10px;">
+                    <button id="toggle-3d-btn" title="Перемикач 2D/3D" class="glass-btn">3D Режим</button>
+                    <button id="settings-btn" title="Налаштування" class="glass-btn"><span class="gear-icon">⚙️</span></button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Прогрес аналізу -->
+        <div id="analysis-progress-container" class="glass-panel hidden" style="margin-bottom: 5px; padding: 5px 15px; font-size: 0.9em; color: #4CAF50; display: none;">
+            <div style="display: flex; justify-content: space-between;">
+                <span>Аналіз партії: <span id="analysis-status-text">Запуск...</span></span>
+                <span id="analysis-percent">0%</span>
+            </div>
+            <div style="width: 100%; background: rgba(0,0,0,0.3); height: 4px; margin-top: 5px; border-radius: 2px;">
+                <div id="analysis-bar" style="width: 0%; height: 100%; background: #4CAF50; border-radius: 2px; transition: width 0.2s;"></div>
+            </div>
+        </div>
+        
+        <!-- Панель Реплею -->
+        <div id="replay-controls" class="glass-panel hidden" style="margin-bottom: 10px; display: none; justify-content: space-between; align-items: center; padding: 10px 15px; min-height: 45px; gap: 20px;">
+            <span id="replay-text" style="font-size: 1.1em; color: #fff;">Триває розбір...</span>
+            <button id="replay-next-btn" class="glass-btn" style="background: rgba(33, 150, 243, 0.5) !important; visibility: hidden;">ДАЛІ ➡️</button>
+        </div>
+        
+        <!-- Лог ходів -->
+        <div id="move-log-container" class="glass-panel hidden-scrollbar">
+            <div id="move-log">
+                <!-- Ходи генеруватимуться сюди (напр. <div class="move-pair">1. e4 e5</div>) -->
+            </div>
+        </div>
+        
+        <div id="middle-section">
+            <!-- Таймер білих (ліворуч) -->
+            <div id="timer-left-container" style="gap: 10px;">
+                <div id="bot-thinking-white" style="display: none; visibility: hidden; color: #4CAF50; font-size: 0.95em; font-style: italic; font-weight: bold; min-height: 20px;">Комп'ютер думає...</div>
+                <div id="timer-white" class="timer hidden glass-panel">00:00</div>
+                <div id="captured-white" class="captured-pieces glass-panel hidden"></div>
+            </div>
+            
+            <div id="board-wrapper">
+                <!-- 2D Canvas -->
+                <div id="board">
+                    <!-- Згенерується автоматично через JS -->
+                </div>
+            </div>
+
+            <!-- Таймер чорних (праворуч) -->
+            <div id="timer-right-container" style="gap: 10px;">
+                <div id="bot-thinking-black" style="display: none; visibility: hidden; color: #4CAF50; font-size: 0.95em; font-style: italic; font-weight: bold; min-height: 20px;">Комп'ютер думає...</div>
+                <div id="timer-black" class="timer hidden glass-panel">00:00</div>
+                <div id="captured-black" class="captured-pieces glass-panel hidden"></div>
+            </div>
+        </div>
+
+        <div id="controls" class="glass-panel" style="padding: 10px;">
+            <button id="cancel-game-btn" class="hidden glass-btn" style="color: #ffaaaa !important;">Вiдмінити партію</button>
+            <button id="resign-btn" class="hidden glass-btn" style="background: rgba(244, 67, 54, 0.4) !important;">Здатися 🏳️</button>
+            <button id="undo-btn" class="glass-btn">Відмінити хід</button>
+            <button id="reset-btn" class="hidden glass-btn">Нова гра</button>
+        </div>
+    </div>
+
+    <!-- Модалка перетворення пішака -->
+    <div id="promotion-modal" class="hidden glass-panel" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; justify-content: center; align-items: center; z-index: 400; background: rgba(0,0,0,0.7); flex-direction: column;">
+        <h2 style="color: white; margin-bottom: 20px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Виберіть фігуру</h2>
+        <div style="display: flex; gap: 15px;">
+            <button class="glass-btn promotion-piece" data-piece="q" style="font-size: 3rem; padding: 10px 20px;">♕</button>
+            <button class="glass-btn promotion-piece" data-piece="r" style="font-size: 3rem; padding: 10px 20px;">♖</button>
+            <button class="glass-btn promotion-piece" data-piece="b" style="font-size: 3rem; padding: 10px 20px;">♗</button>
+            <button class="glass-btn promotion-piece" data-piece="n" style="font-size: 3rem; padding: 10px 20px;">♘</button>
+        </div>
+        <button id="promotion-cancel-btn" class="glass-btn" style="margin-top: 20px; background: rgba(244, 67, 54, 0.5) !important;">Скасувати</button>
+    </div>
+
+    <!-- Модалка вибору режиму аналізу -->
+    <div id="analysis-type-modal" class="hidden" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 400; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center;">
+        <div class="glass-panel" style="padding: 30px; text-align: center; border-radius: 12px;">
+            <h2 style="color: white; margin-top: 0;">Режим аналізу</h2>
+            <div style="display: flex; gap: 15px; margin-top: 20px;">
+                <button id="analyze-mine-btn" class="glass-btn" style="background: rgba(76, 175, 80, 0.5) !important;">Тільки мої ходи</button>
+                <button id="analyze-all-btn" class="glass-btn" style="background: rgba(33, 150, 243, 0.5) !important;">Всі ходи</button>
+            </div>
+            <button id="analyze-cancel-btn" class="glass-btn" style="margin-top: 15px; background: rgba(244, 67, 54, 0.5) !important;">Скасувати</button>
+        </div>
+    </div>
+
+    <!-- Модальне вікно завершення гри -->
+    <div id="game-over-modal" class="hidden">
+        <div class="modal-content glass-panel" style="padding: 40px; text-align: center; width: 350px;">
+            <h2 id="modal-title" style="color: #ff5252; text-shadow: none; margin-top: 0;">МАТ!</h2>
+            <p id="modal-text" style="font-size: 1.5rem;">Перемогли білі</p>
+            <div style="display:flex; justify-content:center; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
+                <button id="analyze-game-btn" class="glass-btn" style="background: rgba(33, 150, 243, 0.5) !important;">Аналіз партії 🔍</button>
+                <button id="modal-close-btn" class="glass-btn" style="background: rgba(76,175,80,0.5) !important;">Нова Гра</button>
+                <button id="modal-hide-btn" class="glass-btn">Закрити</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Модальне вікно налаштувань -->
+    <div id="settings-modal" class="hidden">
+        <div class="settings-content glass-panel" style="padding: 30px; width: 320px;">
+            <h2 style="margin-top:0; text-align:center;">Налаштування Гри</h2>
+            
+            <div class="form-group">
+                <label>Суперник</label>
+                <select id="opponent-select" class="glass-input" style="width:100%; padding: 10px;">
+                    <option value="human">Два гравці</option>
+                    <option value="bot">Гра з комп'ютером</option>
+                    <option value="online">Онлайн гра з другом</option>
+                </select>
+            </div>
+            
+            <div id="online-options" style="display: none; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 8px; margin-bottom: 15px;">
+                <button id="create-room-btn" class="glass-btn" style="width:100%; margin-bottom: 15px; background: rgba(76, 175, 80, 0.5) !important;">Створити кімнату</button>
+                <div style="display:flex; gap: 5px;">
+                    <input type="text" id="join-room-input" class="glass-input" placeholder="Введіть код" style="width: 65%; padding: 10px; text-transform: uppercase;">
+                    <button id="join-room-btn" class="glass-btn" style="width: 35%; background: rgba(33, 150, 243, 0.5) !important;">Ввійти</button>
+                </div>
+                <button id="leave-room-btn" class="glass-btn hidden" style="width:100%; margin-top: 15px; background: rgba(244, 67, 54, 0.5) !important;">Вийти з онлайн-гри</button>
+            </div>
+            
+            <div id="offline-options" style="padding: 10px; background: rgba(0,0,0,0.1); border-radius: 8px; margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 8px; color: #ccc; font-size: 0.9em; cursor: pointer; justify-content: center;">
+                    <input type="checkbox" id="rotate-offline-check" checked>
+                    Обертати дошку після кожного ходу
+                </label>
+            </div>
+            
+            <div id="bot-options">
+                <div class="form-group">
+                    <label>Рівень складності (1-8)</label>
+                    <select id="bot-level-select" class="glass-input" style="width:100%; padding: 10px;" disabled>
+                        <option value="1">Рівень 1 (Початківець)</option>
+                        <option value="2">Рівень 2 (Новачок)</option>
+                        <option value="3">Рівень 3 (Любитель)</option>
+                        <option value="4" selected>Рівень 4 (Досвідчений)</option>
+                        <option value="5">Рівень 5 (Просунутий)</option>
+                        <option value="6">Рівень 6 (Експерт)</option>
+                        <option value="7">Рівень 7 (Майстер)</option>
+                        <option value="8">Рівень 8 (Легенда)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Ваш колір</label>
+                    <select id="player-color-select" class="glass-input" style="width:100%; padding: 10px;" disabled>
+                        <option value="w" selected>Білі</option>
+                        <option value="b">Чорні</option>
+                    </select>
+                </div>
+            </div>
+            <hr style="border-color: rgba(255,255,255,0.1); margin: 20px 0;">
+            
+            <div class="form-group">
+                <label>Режим часу</label>
+                <select id="time-mode-select" class="glass-input" style="width:100%; padding: 10px;">
+                    <option value="none">Без часу</option>
+                    <option value="timer">З часом (Таймер)</option>
+                </select>
+            </div>
+            
+            <div id="time-options">
+                <div class="form-group">
+                    <label>Тривалість партії</label>
+                    <select id="duration-select" class="glass-input" style="width:100%; padding: 10px;" disabled>
+                        <option value="3">3 хвилини</option>
+                        <option value="5" selected>5 хвилин</option>
+                        <option value="10">10 хвилин</option>
+                        <option value="20">20 хвилин</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Додавання за хід (Increment)</label>
+                    <select id="increment-select" class="glass-input" style="width:100%; padding: 10px;" disabled>
+                        <option value="0">Без додавання (0 сек)</option>
+                        <option value="2">2 секунди</option>
+                        <option value="5">5 секунд</option>
+                        <option value="10">10 секунд</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="settings-actions" style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+                <button id="settings-cancel-btn" class="glass-btn">Скасувати</button>
+                <button id="settings-save-btn" class="glass-btn">Зберегти</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальне вікно Авторизації -->
+    <div id="auth-modal" style="position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; flex-direction: column; pointer-events: auto !important;">
+        <div class="glass-panel" style="padding: 40px; width: 320px; text-align: center; display: flex; flex-direction: column; gap: 15px; pointer-events: auto !important;">
+            <h2 style="margin-top: 0; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">Вхід у гру</h2>
+            <div id="auth-error-msg" class="hidden" style="color: #ff5252; font-size: 0.9em; background: rgba(255,0,0,0.1); padding: 5px; border-radius: 4px; pointer-events: none;"></div>
+            
+            <input type="text" id="auth-name-input" class="glass-input" placeholder="Ваше Ім'я (напр. Alex)" style="width: 100%; padding: 12px; font-size: 1.1em; text-align: center;">
+            <input type="password" id="auth-password-input" class="glass-input" placeholder="Пароль" style="width: 100%; padding: 12px; font-size: 1.1em; text-align: center;">
+            
+            <label style="display: flex; align-items: center; justify-content: center; gap: 8px; color: #ccc; font-size: 0.9em; cursor: pointer;">
+                <input type="checkbox" id="auth-remember-checkbox" checked>
+                Запам'ятати мене
+            </label>
+            
+            <button id="auth-submit-btn" class="glass-btn" style="margin-top: 10px; padding: 12px; background: rgba(76, 175, 80, 0.6) !important; font-size: 1.1em;">Увійти / Зареєструватися</button>
+        </div>
+        <div style="color: #888; font-size: 0.8em; margin-top: 15px; max-width: 300px; text-align: center;">
+            Якщо це ваш перший вхід, пароль буде збережено як ваш новий ключ доступу.
+        </div>
+    </div>
+
+    <!-- Firebase SDK Compat -->
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-database-compat.js"></script>
+    
+    <!-- External Chess Logic Core -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    
+    <script src="firebase-config.js"></script>
+    <script src="auth.js?v=1"></script>
+    <script src="firebase-multiplayer.js?v=2"></script>
+    <script src="chess3d.js?v=2"></script>
+    <script src="chess.js?v=14"></script>
+</body>
+</html>

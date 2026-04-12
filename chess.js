@@ -152,24 +152,39 @@ function onSquareClick(squareId) {
 
 function executeMove(moveObj) {
     const previousTurn = game.turn();
-    const moveResult = game.move(moveObj);
-    if (!moveResult) return;
+    const moveResult = game.move(moveObj); // Робимо хід у бібліотеці chess.js
     
+    if (!moveResult) return; // Якщо хід невалідний — виходимо
+    
+    // --- ЦЕЙ БЛОК ВАЖЛИВИЙ ДЛЯ ОНЛАЙНУ ---
+    // Якщо зараз онлайн-гра і хід зробив саме поточний гравець (мій колір)
     if (typeof isOnlineGame !== 'undefined' && isOnlineGame && moveResult.color === myOnlineColor) {
-        sendMoveOnline(moveResult, moveResult.color);
+        if (typeof sendMoveOnline === 'function') {
+            sendMoveOnline(moveResult, moveResult.color);
+        }
     }
+    // ------------------------------------
+
     if (!gameActive) {
-        gameActive = true; settingsBtn.disabled = true;
-        cancelGameBtn.classList.remove('hidden'); resetBtn.classList.add('hidden');
+        gameActive = true; 
+        settingsBtn.disabled = true;
+        cancelGameBtn.classList.remove('hidden'); 
+        resetBtn.classList.add('hidden');
     }
+
     if (useTimer) {
         if (game.history().length > 1) {
-            if (previousTurn === 'w') whiteTimeMs += incrementMs; else blackTimeMs += incrementMs;
+            if (previousTurn === 'w') whiteTimeMs += incrementMs; 
+            else blackTimeMs += incrementMs;
         }
         startTimer();
     }
-    selectedSquare = null; possibleMoves = [];
+
+    selectedSquare = null; 
+    possibleMoves = [];
     updateBoard();
+
+    // Якщо граємо з ботом — даємо йому хід
     if (gameType === 'bot') checkBotTurn();
 }
 
@@ -388,16 +403,40 @@ resignBtn.addEventListener('click', () => {
 });
 
 // Обробка вибору типу суперника (показуємо/ховаємо опції бота)
+// Обробка зміни типу суперника в налаштуваннях
 opponentSelect.addEventListener('change', (e) => {
-    const isBot = (e.target.value === 'bot');
-    const isOnline = (e.target.value === 'online');
+    const onlineOptions = document.getElementById('online-options');
+    const offlineOptions = document.getElementById('offline-options');
+    const botOptions = document.getElementById('bot-options'); // якщо такий блок є для вибору рівня
     
-    botLevelSelect.disabled = !isBot;
-    playerColorSelect.disabled = !isBot;
+    // Ховаємо все спочатку
+    if (onlineOptions) onlineOptions.style.display = 'none';
+    if (offlineOptions) offlineOptions.style.display = 'none';
+    if (botOptions) botOptions.style.display = 'none';
+
+    if (e.target.value === 'bot') {
+        botLevelSelect.disabled = false;
+        playerColorSelect.disabled = false;
+        if (botOptions) botOptions.style.display = 'block';
+    } else if (e.target.value === 'online') {
+        botLevelSelect.disabled = true;
+        playerColorSelect.disabled = true;
+        // ПОКАЗУЄМО блок з кнопками "Створити" та "Приєднатися"
+        if (onlineOptions) {
+            onlineOptions.style.display = 'block';
+            onlineOptions.classList.remove('hidden'); // на випадок якщо використовується CSS клас
+        }
+    } else {
+        // Режим гри з другом на одному ПК
+        botLevelSelect.disabled = true;
+        playerColorSelect.disabled = true;
+        if (offlineOptions) offlineOptions.style.display = 'block';
+    }
     
-    // Якщо у тебе є блоки з додатковими полями, керуємо ними
-    document.getElementById('bot-options')?.classList.toggle('hidden', !isBot);
-    document.getElementById('online-options')?.classList.toggle('hidden', !isOnline);
+    // Перевірка лімітів часу (якщо функція існує)
+    if (typeof enforceTimeLimits === 'function') {
+        enforceTimeLimits();
+    }
 });
 
 // Перемикач режиму часу

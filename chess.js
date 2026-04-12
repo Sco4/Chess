@@ -749,10 +749,14 @@ settingsSaveBtn.addEventListener('click', () => {
         useTimer = false;
     }
 
-    resetGame();
+    resetGame(); // Тут всередині вже скидається gameActive = false
     
-    if (gameType === 'bot' && game.turn() !== playerColor) {
-        checkBotTurn();
+    if (gameType === 'bot') {
+        // Якщо гравець вибрав ЧОРНИХ, бот має почати думати за БІЛИХ
+        if (playerColor === 'b') {
+            gameActive = true; // Важливо активувати гру, щоб бот почав
+            checkBotTurn();
+        }
     }
 });
 
@@ -907,7 +911,7 @@ resetBtn.addEventListener('click', resetGame);
 
 // Undo action
 undoBtn.addEventListener('click', () => {
-    if (!gameActive) return;
+   if (!gameActive || isOnlineGame) return; // Додано перевірку на онлайн
 
     game.undo();
     selectedSquare = null;
@@ -938,6 +942,13 @@ function getBotWorker() {
 
 function checkBotTurn() {
     if (game.game_over()) return;
+    
+    // Бот ходить, якщо зараз не черга кольору гравця
+    if (gameType === 'bot' && game.turn() !== playerColor) {
+        if (botThinkingEl) {
+            botThinkingEl.style.display = 'block'; // Переконайся що display не none
+            botThinkingEl.style.visibility = 'visible';
+        }
     
     if (gameType === 'bot' && game.turn() !== playerColor) {
         if (botThinkingEl) botThinkingEl.style.visibility = 'visible';

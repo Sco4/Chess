@@ -140,3 +140,44 @@ function leaveRoom() {
     document.getElementById('leave-room-btn').classList.add('hidden');
     document.getElementById('opponent-status').innerHTML = `Суперник: Людина`;
 }
+// firebase-multiplayer.js
+
+// Додай це в кінець файлу
+window.sendResignOnline = function() {
+    if (!currentRoomId || !isOnlineGame) return;
+    
+    database.ref(`rooms/${currentRoomId}`).update({
+        status: 'resigned',
+        winner: (myOnlineColor === 'w' ? 'b' : 'w'),
+        resignerName: currentUser
+    });
+};
+
+// Онови функцію startListeningForMoves, щоб вона реагувала на статус 'resigned'
+function startListeningForMoves() {
+    if (moveListener) return;
+    
+    const roomRef = database.ref(`rooms/${currentRoomId}`);
+    
+    // Слухаємо зміни в самій кімнаті (для здачі)
+    roomRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data && data.status === 'resigned') {
+            const winnerColor = data.winner === 'w' ? 'Білі' : 'Чорні';
+            const msg = data.resignerName === currentUser 
+                ? `Ви здалися. Перемогли ${winnerColor}` 
+                : `Суперник (${data.resignerName}) здався! Перемогли ${winnerColor}`;
+            
+            handleOnlineGameOver(msg);
+            roomRef.off('value'); // Припиняємо слухати після завершення
+        }
+    });
+
+    const movesRef = database.ref(`rooms/${currentRoomId}/moves`);
+    moveListener = movesRef.on('child_added', (snapshot) => {
+        const moveData = snapshot.val();
+        if (moveData.color !== myOnlineColor) {
+            receiveMoveFromOnline(moveData);
+        }
+    });
+}

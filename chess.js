@@ -445,5 +445,51 @@ timeModeSelect.addEventListener('change', (e) => {
     durationSelect.disabled = !timerEnabled;
     incrementSelect.disabled = !timerEnabled;
 });
+
+
+// --- ОБРОБНИКИ ДЛЯ ОНЛАЙН-КНОПОК ---
+
+// Кнопка "Створити кімнату"
+const createRoomBtn = document.getElementById('create-room-btn');
+if (createRoomBtn) {
+    createRoomBtn.addEventListener('click', () => {
+        if (typeof createRoom === 'function') {
+            createRoom(); // Викликаємо функцію з firebase-multiplayer.js
+        } else {
+            console.error("Помилка: функція createRoom не знайдена");
+        }
+    });
+}
+
+// Кнопка "Приєднатися до кімнати"
+const joinRoomBtn = document.getElementById('join-room-btn');
+const joinRoomInput = document.getElementById('join-room-input');
+if (joinRoomBtn && joinRoomInput) {
+    joinRoomBtn.addEventListener('click', () => {
+        const roomId = joinRoomInput.value.trim();
+        if (roomId.length >= 5) {
+            if (typeof joinRoom === 'function') {
+                joinRoom(roomId); // Викликаємо функцію з firebase-multiplayer.js
+            } else {
+                console.error("Помилка: функція joinRoom не знайдена");
+            }
+        } else {
+            alert("Будь ласка, введіть коректний код кімнати (5 символів)");
+        }
+    });
+}
+
+// Кнопка "Покинути кімнату" (та, що на головній панелі)
+const leaveRoomBtn = document.getElementById('leave-room-btn');
+if (leaveRoomBtn) {
+    leaveRoomBtn.addEventListener('click', () => {
+        if (confirm("Ви дійсно хочете покинути кімнату? Гру буде перервано.")) {
+            if (typeof leaveRoom === 'function') {
+                leaveRoom();
+                location.reload(); // Перезавантажуємо сторінку для чистоти стану
+            }
+        }
+    });
+}
 // Старт
 createBoard();

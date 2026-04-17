@@ -711,6 +711,10 @@ settingsCancelBtn.addEventListener('click', () => {
 settingsSaveBtn.addEventListener('click', () => {
     settingsModal.classList.add('hidden');
     
+    if (window.isOnlineGame && opponentSelect.value !== 'online') {
+        if (window.leaveRoom) window.leaveRoom();
+    }
+    
     gameType = opponentSelect.value;
     if (gameType === 'bot') {
         botLevel = parseInt(botLevelSelect.value);

@@ -293,6 +293,8 @@ body {
     display: flex; justify-content: center; align-items: center;
     font-size: 45px; cursor: pointer; user-select: none;
     position: relative; box-sizing: border-box;
+    /* Grid/Flex Fixes */
+    min-height: 0; min-width: 0; overflow: hidden;
 }
 
 .square.light { background-color: var(--light-square); }

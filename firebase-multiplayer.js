@@ -6,6 +6,7 @@ let myOnlineColor = null;
 let isOnlineGame = false;
 let moveListener = null;
 let statusListener = null;
+let currentDisconnectRef = null;
 
 // Функція генерації випадкового коду кімнати
 function generateRoomCode() {
@@ -49,6 +50,11 @@ function createRoom() {
                 // Перезапускаємо гру локально
                 startOnlineGameLocally('w', data.joinerName);
                 
+                // Встановлюємо onDisconnect
+                if (currentDisconnectRef) currentDisconnectRef.cancel();
+                currentDisconnectRef = database.ref(`rooms/${roomId}/status`).onDisconnect();
+                currentDisconnectRef.set('abandoned');
+                
                 // Видалимо цей загальний слухач, щоб він не спрацьовував двічі
                 roomRef.off('value');
             }
@@ -91,6 +97,11 @@ function joinRoom(roomId) {
             startListeningForMoves();
             document.getElementById('settings-modal').classList.add('hidden');
             
+            // Встановлюємо onDisconnect
+            if (currentDisconnectRef) currentDisconnectRef.cancel();
+            currentDisconnectRef = database.ref(`rooms/${roomId}/status`).onDisconnect();
+            currentDisconnectRef.set('abandoned');
+            
             startOnlineGameLocally('b', data.creatorName);
         });
     });
@@ -118,7 +129,8 @@ function startListeningForMoves() {
         } else if (val === 'b_resigned' && myOnlineColor === 'w') {
             if (window.handleOnlineGameOver) window.handleOnlineGameOver('Суперник здався. Чорні програли.');
         } else if (val === 'abandoned') {
-            if (window.handleOnlineGameOver) window.handleOnlineGameOver('Суперник покинув гру.');
+            document.getElementById('opponent-status').innerHTML = `Суперник покинув гру 🔴`;
+            if (window.handleOnlineGameOver) window.handleOnlineGameOver('Суперник покинув гру або втратив з\'єднання.');
         }
     });
 }
@@ -149,6 +161,11 @@ function leaveRoom() {
         if (statusListener) {
             database.ref(`rooms/${currentRoomId}/status`).off('value', statusListener);
             statusListener = null;
+        }
+        
+        if (currentDisconnectRef) {
+            currentDisconnectRef.cancel();
+            currentDisconnectRef = null;
         }
     }
     

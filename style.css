@@ -336,7 +336,7 @@ body {
 .coord-rank { top: 2px; left: 4px; }
 .rotate-black .coord { transform: rotate(180deg); }
 
-.piece { transition: transform 0.6s; z-index: 2; }
+.piece { transition: transform 0.6s; z-index: 2; font-family: 'Arial Unicode MS', 'Segoe UI Symbol', sans-serif; }
 .rotate-black .piece { transform: rotate(180deg); }
 
 /* Модалки */
@@ -369,11 +369,53 @@ body {
 #controls { display: flex; gap: 15px; margin-top: 5px; }
 
 @media (max-width: 800px) {
+    #game-container {
+        padding: 5px;
+        gap: 5px;
+    }
+    #top-bar {
+        padding: 5px 10px;
+        max-width: 100%;
+    }
     #middle-section {
         flex-direction: column;
+        gap: 5px;
     }
-    #board { width: 320px; height: 320px; }
-    .square { font-size: 32px; }
+    /* Дошка має бути квадратною і залежати від меншого виміру (ширина чи висота екрану) */
+    #board { 
+        width: min(95vw, 45vh); 
+        height: min(95vw, 45vh); 
+    }
+    .square { 
+        font-size: min(10vw, 5vh); 
+    }
+    #timer-left-container, #timer-right-container {
+        height: auto;
+        width: 100%;
+        flex-direction: row;
+        justify-content: space-evenly;
+        padding-top: 5px;
+        min-height: 45px;
+    }
+    .timer {
+        font-size: 1.5rem;
+        padding: 5px 10px;
+        width: auto;
+        min-width: 80px;
+    }
+    .captured-pieces {
+        font-size: 1.2rem;
+        padding: 5px;
+        min-height: unset;
+    }
+    #controls {
+        gap: 5px;
+        padding: 5px;
+    }
+    .glass-btn {
+        padding: 8px 12px;
+        font-size: 0.9rem;
+    }
 }
 
 /* 3D Mode Layout Modifiers */

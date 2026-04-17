@@ -91,7 +91,7 @@ const modalCloseBtn = document.getElementById('modal-close-btn');
 const modalHideBtn = document.getElementById('modal-hide-btn');
 
 const pieceUnicode = {
-    'p': '♟', 'n': '♞', 'b': '♝', 'r': '♜', 'q': '♛', 'k': '♚'
+    'p': '♟\uFE0E', 'n': '♞\uFE0E', 'b': '♝\uFE0E', 'r': '♜\uFE0E', 'q': '♛\uFE0E', 'k': '♚\uFE0E'
 };
 
 const pieceValues = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
@@ -376,6 +376,8 @@ window.startOnlineGameLocally = function(color, opponentName) {
     settingsBtn.disabled = true;
     cancelGameBtn.classList.remove('hidden');
     resignBtn.classList.remove('hidden');
+    resignBtn.disabled = false;
+    undoBtn.disabled = true;
     resetBtn.classList.add('hidden');
     document.getElementById('opponent-status').innerHTML = `Суперник: ${opponentName} 🟢`;
 };
@@ -863,6 +865,7 @@ function resetGame() {
     gameStarted = false;
     resetBtn.innerText = "СТАРТ";
     settingsBtn.disabled = false;
+    undoBtn.disabled = false;
     
     if (botThinkingEl) botThinkingEl.style.visibility = 'hidden';
     
@@ -910,6 +913,7 @@ resetBtn.addEventListener('click', () => {
     gameStarted = true;
     resetBtn.classList.add('hidden');
     resignBtn.classList.remove('hidden');
+    resignBtn.disabled = false;
     cancelGameBtn.classList.remove('hidden');
     settingsBtn.disabled = true;
     
@@ -921,6 +925,7 @@ resetBtn.addEventListener('click', () => {
 // Undo action
 undoBtn.addEventListener('click', () => {
     if (!gameActive) return;
+    if (gameType === 'online') return;
 
     game.undo();
     selectedSquare = null;

@@ -114,6 +114,16 @@
                 </select>
             </div>
 
+            <div class="form-group" style="text-align: left; margin-top: 15px;">
+                <label>Точність розрахунку (Глибина):</label>
+                <select id="engine-depth-select" class="glass-input" style="width: 100%; padding: 10px;">
+                    <option value="10">Поверхнево (10) - дуже швидко</option>
+                    <option value="12" selected>Стандарт (12) - збалансовано</option>
+                    <option value="14">Глибоко (14) - точніше, але повільно</option>
+                    <option value="16">Максимум (16) - дуже повільно!</option>
+                </select>
+            </div>
+
             <div style="margin-top: 20px; font-size: 0.9em; margin-bottom: 10px; color: #ccc;">Чиї ходи аналізувати?</div>
             <div style="display: flex; gap: 10px;">
                 <button id="analyze-mine-btn" class="glass-btn" style="background: rgba(76, 175, 80, 0.5) !important; flex: 1; padding: 10px !important;">Тільки мої</button>

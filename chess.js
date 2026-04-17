@@ -58,6 +58,7 @@ let analysisWorker = null;
 let tempScore = 0;
 let analyzeMode = 'key';
 let analyzeOnlyPlayer = false;
+let engineDepth = 12;
 let gameStarted = false;
 
 let inReplayMode = false;
@@ -122,6 +123,21 @@ function createBoard() {
             boardElement.appendChild(squareEl);
         }
     }
+    
+    // Додаємо SVG-шар для малювання стрілок
+    boardElement.insertAdjacentHTML('beforeend', `
+        <svg id="arrows-svg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 15; overflow: visible;">
+            <defs>
+                <marker id="arrowhead-played" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                    <polygon points="0 0, 6 3, 0 6" fill="rgba(244, 67, 54, 0.7)" />
+                </marker>
+                <marker id="arrowhead-best" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                    <polygon points="0 0, 6 3, 0 6" fill="rgba(76, 175, 80, 0.9)" />
+                </marker>
+            </defs>
+        </svg>
+    `);
+    
     updateBoard();
 }
 
@@ -463,18 +479,22 @@ function updateStatus() {
 
     if (game.in_checkmate()) {
         statusText = `Мат! Перемогли ${opponentColor}.`;
-        modalTitle.innerText = 'МАТ!';
-        modalText.innerText = `Перемогли ${opponentColor}`;
-        gameOverModal.classList.remove('hidden');
-        stopTimer();
-        endGame();
+        if (!isAnalyzing && !inReplayMode) {
+            modalTitle.innerText = 'МАТ!';
+            modalText.innerText = `Перемогли ${opponentColor}`;
+            gameOverModal.classList.remove('hidden');
+            stopTimer();
+            endGame();
+        }
     } else if (game.in_draw()) {
         statusText = 'Нічия!';
-        modalTitle.innerText = 'НІЧИЯ!';
-        modalText.innerText = 'Гра закінчилася внічию';
-        gameOverModal.classList.remove('hidden');
-        stopTimer();
-        endGame();
+        if (!isAnalyzing && !inReplayMode) {
+            modalTitle.innerText = 'НІЧИЯ!';
+            modalText.innerText = 'Гра закінчилася внічию';
+            gameOverModal.classList.remove('hidden');
+            stopTimer();
+            endGame();
+        }
     } else {
         statusText = `Хід: ${moveColor}`;
         if (game.in_check()) {
@@ -852,6 +872,9 @@ function resetGame() {
     selectedSquare = null;
     possibleMoves = [];
     
+    if (typeof clearArrows === 'function') clearArrows();
+    if (typeof clearOptimalHighlights2D === 'function') clearOptimalHighlights2D();
+    
     moveClassifications = [];
     analysisBestMoves = [];
     if (analysisWorker) {
@@ -1029,6 +1052,8 @@ analyzeBtn.addEventListener('click', () => {
 document.getElementById('analyze-mine-btn').addEventListener('click', () => {
     document.getElementById('analysis-type-modal').classList.add('hidden');
     analyzeMode = document.getElementById('analysis-depth-select').value;
+    const depthEl = document.getElementById('engine-depth-select');
+    if (depthEl) engineDepth = parseInt(depthEl.value) || 12;
     analyzeOnlyPlayer = true;
     startAnalysis();
 });
@@ -1036,6 +1061,8 @@ document.getElementById('analyze-mine-btn').addEventListener('click', () => {
 document.getElementById('analyze-all-btn').addEventListener('click', () => {
     document.getElementById('analysis-type-modal').classList.add('hidden');
     analyzeMode = document.getElementById('analysis-depth-select').value;
+    const depthEl = document.getElementById('engine-depth-select');
+    if (depthEl) engineDepth = parseInt(depthEl.value) || 12;
     analyzeOnlyPlayer = false;
     startAnalysis();
 });
@@ -1046,6 +1073,9 @@ document.getElementById('analyze-cancel-btn').addEventListener('click', () => {
 
 function startAnalysis() {
     isAnalyzing = true;
+    selectedSquare = null;
+    possibleMoves = [];
+    updateBoard();
     progressContainer.style.display = 'block';
     progressStatus.innerText = 'Збір позицій...';
     progressBar.style.width = '0%';
@@ -1106,7 +1136,7 @@ function analyzeNextFen() {
     }
     
     analysisWorker.postMessage(`position fen ${state.fen}`);
-    analysisWorker.postMessage('go depth 12'); // Глибина 12 дає достатньо хороший баланс швидкості/якості у JS
+    analysisWorker.postMessage(`go depth ${engineDepth}`);
 }
 
 function handleAnalysisMessage(e) {
@@ -1264,9 +1294,15 @@ function pauseReplay(mark, playedMove, bestMoveRaw, executedMoveRaw) {
     }
     replayText.innerText = adviceText;
     
+    clearArrows();
+    if (executedMoveRaw) {
+        drawArrow(executedMoveRaw.substring(0, 2), executedMoveRaw.substring(2, 4), 'played');
+    }
+    
     // Підсвічуємо ідеальний хід
     if (isError && bestMoveRaw && !playedBest) {
         highlightOptimalMove2D(bestMoveRaw);
+        drawArrow(bestMoveRaw.substring(0, 2), bestMoveRaw.substring(2, 4), 'best');
         
         if (window.chess3D) {
             const hist = game.history({ verbose: true });
@@ -1281,6 +1317,43 @@ function pauseReplay(mark, playedMove, bestMoveRaw, executedMoveRaw) {
             );
         }
     }
+}
+
+function drawArrow(fromSq, toSq, colorType) {
+    const svg = document.getElementById('arrows-svg');
+    if (!svg) return;
+    
+    function getCoords(sq) {
+        const file = sq.charCodeAt(0) - 97;
+        const rank = 8 - parseInt(sq[1]);
+        return {
+            x: (file * 12.5) + 6.25,
+            y: (rank * 12.5) + 6.25
+        };
+    }
+    
+    const start = getCoords(fromSq);
+    const end = getCoords(toSq);
+    
+    const strokeColor = colorType === 'played' ? 'rgba(244, 67, 54, 0.7)' : 'rgba(76, 175, 80, 0.9)';
+    const marker = colorType === 'played' ? 'url(#arrowhead-played)' : 'url(#arrowhead-best)';
+    
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', `${start.x}%`);
+    line.setAttribute('y1', `${start.y}%`);
+    line.setAttribute('x2', `${end.x}%`);
+    line.setAttribute('y2', `${end.y}%`);
+    line.setAttribute('stroke', strokeColor);
+    line.setAttribute('stroke-width', '4');
+    line.setAttribute('stroke-linecap', 'round');
+    line.setAttribute('marker-end', marker);
+    line.classList.add('analysis-arrow');
+    
+    svg.appendChild(line);
+}
+
+function clearArrows() {
+    document.querySelectorAll('.analysis-arrow').forEach(el => el.remove());
 }
 
 function highlightOptimalMove2D(bestMoveRaw) {
@@ -1302,6 +1375,7 @@ function clearOptimalHighlights2D() {
 
 replayNextBtn.addEventListener('click', () => {
     replayNextBtn.style.visibility = 'hidden';
+    clearArrows();
     clearOptimalHighlights2D();
     replayTimer = setTimeout(playNextReplayMove, 400);
 });

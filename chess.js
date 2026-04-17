@@ -56,7 +56,9 @@ let currentAnalysisIndex = 0;
 let isAnalyzing = false;
 let analysisWorker = null;
 let tempScore = 0;
+let analyzeMode = 'key';
 let analyzeOnlyPlayer = false;
+let gameStarted = false;
 
 let inReplayMode = false;
 let replayIndex = 0;
@@ -234,6 +236,7 @@ function updateBoard() {
 }
 
 function onSquareClick(squareId) {
+    if (!gameStarted) return;
     if (game.game_over()) return;
     if (gameType === 'bot' && game.turn() !== playerColor) return;
     if (isOnlineGame && game.turn() !== myOnlineColor) return;
@@ -369,6 +372,7 @@ window.startOnlineGameLocally = function(color, opponentName) {
     resetGame();
     // Відновлюємо статус після ресету (бо ресет його скидає)
     gameActive = true; 
+    gameStarted = true;
     settingsBtn.disabled = true;
     cancelGameBtn.classList.remove('hidden');
     resignBtn.classList.remove('hidden');
@@ -750,10 +754,6 @@ settingsSaveBtn.addEventListener('click', () => {
     }
 
     resetGame();
-    
-    if (gameType === 'bot' && game.turn() !== playerColor) {
-        checkBotTurn();
-    }
 });
 
 function formatTime(ms) {
@@ -857,8 +857,11 @@ function resetGame() {
     if (replayTimer) clearTimeout(replayTimer);
     progressContainer.style.display = 'none';
     replayControls.style.display = 'none';
+    moveLogContainer.style.display = 'none';
     
     gameActive = false;
+    gameStarted = false;
+    resetBtn.innerText = "СТАРТ";
     settingsBtn.disabled = false;
     
     if (botThinkingEl) botThinkingEl.style.visibility = 'hidden';
@@ -903,7 +906,17 @@ function endGame() {
 
 // Управління партією
 cancelGameBtn.addEventListener('click', resetGame);
-resetBtn.addEventListener('click', resetGame);
+resetBtn.addEventListener('click', () => {
+    gameStarted = true;
+    resetBtn.classList.add('hidden');
+    resignBtn.classList.remove('hidden');
+    cancelGameBtn.classList.remove('hidden');
+    settingsBtn.disabled = true;
+    
+    if (gameType === 'bot' && game.turn() !== playerColor) {
+        checkBotTurn();
+    }
+});
 
 // Undo action
 undoBtn.addEventListener('click', () => {
@@ -1006,12 +1019,14 @@ analyzeBtn.addEventListener('click', () => {
 
 document.getElementById('analyze-mine-btn').addEventListener('click', () => {
     document.getElementById('analysis-type-modal').classList.add('hidden');
+    analyzeMode = document.getElementById('analysis-depth-select').value;
     analyzeOnlyPlayer = true;
     startAnalysis();
 });
 
 document.getElementById('analyze-all-btn').addEventListener('click', () => {
     document.getElementById('analysis-type-modal').classList.add('hidden');
+    analyzeMode = document.getElementById('analysis-depth-select').value;
     analyzeOnlyPlayer = false;
     startAnalysis();
 });
@@ -1153,6 +1168,7 @@ function finishAnalysis() {
     }
     
     updateMoveLog(); // Перемалювати лог із значками!
+    moveLogContainer.style.display = 'flex';
     
     // Запуск розбору партії
     startReplay();
@@ -1188,17 +1204,21 @@ function playNextReplayMove() {
     
     // Робимо хід
     const moveSAN = fullGameHistory[replayIndex];
-    game.move(moveSAN);
+    const moveObj = game.move(moveSAN);
     updateBoard();
     
+    const executedMoveRaw = moveObj.from + moveObj.to + (moveObj.promotion || '');
+
     const mark = moveClassifications[replayIndex];
     // Зупиняємось ТІЛЬКИ на грубих помилках або геніальних/чудових ходах
     // 🌟 (Просто хороший хід) пропускаємо без паузи!
     const isKey = ['💎', '🎯', '❓', '❌'].includes(mark);
     const justPlayedByPlayer = (game.turn() !== playerColor);
+    const matchesDepth = (analyzeMode === 'all' || isKey);
+    const matchesScope = (!analyzeOnlyPlayer || justPlayedByPlayer);
     
-    if (isKey && (!analyzeOnlyPlayer || justPlayedByPlayer)) {
-        pauseReplay(mark, moveSAN, analysisBestMoves[replayIndex]);
+    if (matchesDepth && matchesScope) {
+        pauseReplay(mark, moveSAN, analysisBestMoves[replayIndex], executedMoveRaw);
     } else {
         replayText.innerText = `Відтворення... (${moveSAN})`;
         replayTimer = setTimeout(playNextReplayMove, 400); // Швидке перемотування (0.4с)
@@ -1207,22 +1227,36 @@ function playNextReplayMove() {
     replayIndex++;
 }
 
-function pauseReplay(mark, playedMove, bestMoveRaw) {
+function pauseReplay(mark, playedMove, bestMoveRaw, executedMoveRaw) {
     if (replayTimer) clearTimeout(replayTimer);
     replayNextBtn.style.visibility = 'visible';
     
+    let moveDesc = '';
+    switch (mark) {
+        case '❌': moveDesc = 'Бландер (Зівок)'; break;
+        case '❓': moveDesc = 'Помилка'; break;
+        case '⁉️': moveDesc = 'Неточність'; break;
+        case '✔️': moveDesc = 'Добрий хід'; break;
+        case '👍': moveDesc = 'Відмінний хід'; break;
+        case '🌟': moveDesc = 'Найкращий хід'; break;
+        case '🎯': moveDesc = 'Чудовий хід'; break;
+        case '💎': moveDesc = 'Геніальний хід'; break;
+        default: moveDesc = 'Хід'; break;
+    }
+
     let adviceText = '';
-    if (['❓', '❌'].includes(mark)) {
-        adviceText = `${mark} Зівок/Помилка! Ви зіграли ${playedMove}. Краще було б: ${bestMoveRaw || 'невідомо'}`;
-    } else if (['⁉️'].includes(mark)) {
-        adviceText = `${mark} Неточність. Ви зіграли ${playedMove}. Краще було б: ${bestMoveRaw || 'невідомо'}`;
+    const isError = ['❓', '❌', '⁉️'].includes(mark);
+    const playedBest = bestMoveRaw && executedMoveRaw === bestMoveRaw;
+
+    if (isError && !playedBest) {
+        adviceText = `${mark} ${playedMove} - ${moveDesc}! Краще: ${bestMoveRaw || '?'}`;
     } else {
-        adviceText = `${mark} Чудово! ${playedMove} - дуже сильний хід.`;
+        adviceText = `${mark} ${playedMove} - ${moveDesc}.`;
     }
     replayText.innerText = adviceText;
     
     // Підсвічуємо ідеальний хід
-    if (['❓', '❌', '⁉️'].includes(mark) && bestMoveRaw) {
+    if (isError && bestMoveRaw && !playedBest) {
         highlightOptimalMove2D(bestMoveRaw);
         
         if (window.chess3D) {
@@ -1262,6 +1296,13 @@ replayNextBtn.addEventListener('click', () => {
     clearOptimalHighlights2D();
     replayTimer = setTimeout(playNextReplayMove, 400);
 });
+
+const replayExitBtn = document.getElementById('replay-exit-btn');
+if (replayExitBtn) {
+    replayExitBtn.addEventListener('click', () => {
+        resetGame();
+    });
+}
 
 // Ініціалізація
 createBoard();

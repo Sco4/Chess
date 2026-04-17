@@ -5,6 +5,7 @@ let currentRoomId = null;
 let myOnlineColor = null; 
 let isOnlineGame = false;
 let moveListener = null;
+let statusListener = null;
 
 // Функція генерації випадкового коду кімнати
 function generateRoomCode() {
@@ -108,6 +109,18 @@ function startListeningForMoves() {
             receiveMoveFromOnline(moveData);
         }
     });
+    
+    const statusRef = database.ref(`rooms/${currentRoomId}/status`);
+    statusListener = statusRef.on('value', (snapshot) => {
+        const val = snapshot.val();
+        if (val === 'w_resigned' && myOnlineColor === 'b') {
+            if (window.handleOnlineGameOver) window.handleOnlineGameOver('Суперник здався. Білі програли.');
+        } else if (val === 'b_resigned' && myOnlineColor === 'w') {
+            if (window.handleOnlineGameOver) window.handleOnlineGameOver('Суперник здався. Чорні програли.');
+        } else if (val === 'abandoned') {
+            if (window.handleOnlineGameOver) window.handleOnlineGameOver('Суперник покинув гру.');
+        }
+    });
 }
 
 // Відправка свого ходу
@@ -132,6 +145,11 @@ function leaveRoom() {
             database.ref(`rooms/${currentRoomId}/moves`).off('child_added', moveListener);
             moveListener = null;
         }
+        
+        if (statusListener) {
+            database.ref(`rooms/${currentRoomId}/status`).off('value', statusListener);
+            statusListener = null;
+        }
     }
     
     currentRoomId = null;
@@ -140,3 +158,11 @@ function leaveRoom() {
     document.getElementById('leave-room-btn').classList.add('hidden');
     document.getElementById('opponent-status').innerHTML = `Суперник: Людина`;
 }
+
+window.sendResignOnline = function() {
+    if (!currentRoomId || !isOnlineGame) return;
+    database.ref(`rooms/${currentRoomId}/status`).set(myOnlineColor + '_resigned');
+    if (window.handleOnlineGameOver) {
+        window.handleOnlineGameOver('Ви здалися. Переміг суперник.');
+    }
+};

@@ -45,11 +45,14 @@
         <!-- Панель Реплею -->
         <div id="replay-controls" class="glass-panel hidden" style="margin-bottom: 10px; display: none; justify-content: space-between; align-items: center; padding: 10px 15px; min-height: 45px; gap: 20px;">
             <span id="replay-text" style="font-size: 1.1em; color: #fff;">Триває розбір...</span>
-            <button id="replay-next-btn" class="glass-btn" style="background: rgba(33, 150, 243, 0.5) !important; visibility: hidden;">ДАЛІ ➡️</button>
+            <div style="display: flex; gap: 10px;">
+                <button id="replay-next-btn" class="glass-btn" style="background: rgba(33, 150, 243, 0.5) !important; visibility: hidden;">ДАЛІ ➡️</button>
+                <button id="replay-exit-btn" class="glass-btn" style="background: rgba(244, 67, 54, 0.5) !important;">Вихід</button>
+            </div>
         </div>
         
         <!-- Лог ходів -->
-        <div id="move-log-container" class="glass-panel hidden-scrollbar">
+        <div id="move-log-container" class="glass-panel hidden-scrollbar" style="display: none;">
             <div id="move-log">
                 <!-- Ходи генеруватимуться сюди (напр. <div class="move-pair">1. e4 e5</div>) -->
             </div>
@@ -82,7 +85,7 @@
             <button id="cancel-game-btn" class="hidden glass-btn" style="color: #ffaaaa !important;">Вiдмінити партію</button>
             <button id="resign-btn" class="hidden glass-btn" style="background: rgba(244, 67, 54, 0.4) !important;">Здатися 🏳️</button>
             <button id="undo-btn" class="glass-btn">Відмінити хід</button>
-            <button id="reset-btn" class="hidden glass-btn">Нова гра</button>
+            <button id="reset-btn" class="hidden glass-btn" style="background: rgba(76, 175, 80, 0.5) !important;">СТАРТ</button>
         </div>
     </div>
 
@@ -100,13 +103,23 @@
 
     <!-- Модалка вибору режиму аналізу -->
     <div id="analysis-type-modal" class="hidden" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 400; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center;">
-        <div class="glass-panel" style="padding: 30px; text-align: center; border-radius: 12px;">
+        <div class="glass-panel" style="padding: 30px; text-align: center; border-radius: 12px; width: 320px;">
             <h2 style="color: white; margin-top: 0;">Режим аналізу</h2>
-            <div style="display: flex; gap: 15px; margin-top: 20px;">
-                <button id="analyze-mine-btn" class="glass-btn" style="background: rgba(76, 175, 80, 0.5) !important;">Тільки мої ходи</button>
-                <button id="analyze-all-btn" class="glass-btn" style="background: rgba(33, 150, 243, 0.5) !important;">Всі ходи</button>
+            
+            <div class="form-group" style="text-align: left; margin-top: 15px;">
+                <label>Глибина деталізації:</label>
+                <select id="analysis-depth-select" class="glass-input" style="width: 100%; padding: 10px;">
+                    <option value="key">Тільки знакові ходи</option>
+                    <option value="all">Кожний хід</option>
+                </select>
             </div>
-            <button id="analyze-cancel-btn" class="glass-btn" style="margin-top: 15px; background: rgba(244, 67, 54, 0.5) !important;">Скасувати</button>
+
+            <div style="margin-top: 20px; font-size: 0.9em; margin-bottom: 10px; color: #ccc;">Чиї ходи аналізувати?</div>
+            <div style="display: flex; gap: 10px;">
+                <button id="analyze-mine-btn" class="glass-btn" style="background: rgba(76, 175, 80, 0.5) !important; flex: 1; padding: 10px !important;">Тільки мої</button>
+                <button id="analyze-all-btn" class="glass-btn" style="background: rgba(33, 150, 243, 0.5) !important; flex: 1; padding: 10px !important;">Всі ходи</button>
+            </div>
+            <button id="analyze-cancel-btn" class="glass-btn" style="margin-top: 15px; width: 100%; background: rgba(244, 67, 54, 0.5) !important;">Скасувати</button>
         </div>
     </div>
 
